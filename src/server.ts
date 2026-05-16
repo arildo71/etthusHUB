@@ -498,7 +498,7 @@ async function commissionDevice(pairingCode: string, pairingDocRef?: any) {
   if (!controller) throw new Error('Matter controller not initialized');
   const update = async (msg: string) => {
     console.log(`[Matter] ${msg}`);
-    if (pairingDocRef) try { await updateDoc(pairingDocRef, { message }); } catch (e) {}
+    if (pairingDocRef) try { await updateDoc(pairingDocRef, { message: msg }); } catch (e) {}
   };
   await update('Decoding pairing code...');
   const pairingData = ManualPairingCodeCodec.decode(pairingCode);
