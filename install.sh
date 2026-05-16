@@ -33,6 +33,17 @@ check_root() {
     fi
 }
 
+# Check for --git flag for remote install
+GIT_REPO=""
+if [[ "$1" == "--git" ]]; then
+    GIT_REPO="${2:-https://github.com/arildo71/etthusHUB.git}"
+    if [[ "$GIT_REPO" != https://github.com/* ]]; then
+        log_error "Invalid GitHub URL: $GIT_REPO"
+        exit 1
+    fi
+    log_info "Git install mode: $GIT_REPO"
+fi
+
 is_raspberry_pi() {
     if grep -qi "raspberry" /proc/cpuinfo 2>/dev/null; then
         return 0
@@ -108,19 +119,33 @@ main() {
 
     if [[ -d "$HUB_DIR" ]]; then
         log_warn "${HUB_DIR} already exists."
-        read -rp "Overwrite? [y/N] " OVERWRITE
-        if [[ "$OVERWRITE" =~ ^[Yy]$ ]]; then
+        if [[ -n "$GIT_REPO" ]]; then
+            log_info "Removing old installation for git clone..."
             rm -rf "$HUB_DIR"
         else
-            log_error "Installation aborted."
-            exit 1
+            read -rp "Overwrite? [y/N] " OVERWRITE
+            if [[ "$OVERWRITE" =~ ^[Yy]$ ]]; then
+                rm -rf "$HUB_DIR"
+            else
+                log_error "Installation aborted."
+                exit 1
+            fi
         fi
     fi
 
-    mkdir -p "$HUB_DIR"
+    # Install git if needed
+    if [[ -n "$GIT_REPO" ]]; then
+        if ! command -v git &>/dev/null; then
+            log_info "Installing git..."
+            apt-get install -y git
+        fi
+        log_info "Cloning $GIT_REPO ..."
+        git clone "$GIT_REPO" "$HUB_DIR"
+    else
+        mkdir -p "$HUB_DIR"
 
-    # Copy all files from the source directory (where this script lives)
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        # Copy all files from the source directory (where this script lives)
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     
     if [[ -f "$SCRIPT_DIR/package.json" ]]; then
         log_info "Copying files from $SCRIPT_DIR ..."
@@ -147,6 +172,8 @@ main() {
         log_error "Please run this script from within the etthusHUB directory."
         exit 1
     fi
+
+    fi  # end of git vs local copy block
 
     # ── 5. Install npm Dependencies ──────────────────────────────────────────
     log_step "5/7  Installing Node.js dependencies"
