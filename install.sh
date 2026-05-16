@@ -247,6 +247,7 @@ SERVICE_EOF
     # Install Plejd bridge service if available
     if [[ -f "$HUB_DIR/plejd-bridge/plejd-bridge.service" ]]; then
         log_info "Installing Plejd bridge service..."
+        sed -i 's|ExecStart=.*|ExecStart=/usr/bin/python3 /opt/etthus-hub/plejd-bridge/python/final_bridge.py|' "$HUB_DIR/plejd-bridge/plejd-bridge.service"
         cp "$HUB_DIR/plejd-bridge/plejd-bridge.service" /etc/systemd/system/
         systemctl enable plejd-bridge.service
         log_info "Plejd bridge service installed."
