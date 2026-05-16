@@ -1,0 +1,36 @@
+{
+  "name": "etthus-hub",
+  "version": "1.0.0",
+  "description": "EtthusControl Matter Smart Home Hub for Raspberry Pi",
+  "main": "src/server.ts",
+  "scripts": {
+    "start": "ts-node src/server.ts",
+    "dev": "ts-node src/server.ts",
+    "build": "tsc",
+    "serve": "node dist/server.js",
+    "clean": "rm -rf dist .matter-storage"
+  },
+  "keywords": ["matter", "smart-home", "iot", "raspberry-pi"],
+  "author": "EtthusControl",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@matter/general": "^0.12.6",
+    "@matter/nodejs": "^0.12.6",
+    "@matter/protocol": "^0.12.6",
+    "@matter/types": "^0.12.6",
+    "@project-chip/matter-node.js": "^0.12.6",
+    "@project-chip/matter.js": "^0.12.6",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "firebase": "^12.12.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}

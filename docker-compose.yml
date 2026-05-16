@@ -1,0 +1,36 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# EtthusHUB - Docker Compose
+# ──────────────────────────────────────────────────────────────────────────────
+# Usage: docker compose up -d
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+  etthus-hub:
+    build: .
+    container_name: etthus-hub
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HUB_NAME=EtthusHUB
+      - MATTER_STORAGE_PATH=/opt/etthus-hub/.matter-storage
+      - FIREBASE_API_KEY=AIzaSyBD46GyXwLJUHFr-q0GRFbUsWKJsw4omSY
+      - FIREBASE_AUTH_DOMAIN=etthuscontrol-matter.firebaseapp.com
+      - FIREBASE_PROJECT_ID=etthuscontrol-matter
+      - FIREBASE_STORAGE_BUCKET=etthuscontrol-matter.firebasestorage.app
+      - FIREBASE_MESSAGING_SENDER_ID=267601572566
+      - FIREBASE_APP_ID=1:267601572566:web:fe2dd2cad25a00c9f78f77
+      - FIREBASE_MEASUREMENT_ID=G-M2MCJ3HBXY
+      - FIREBASE_DB_NAME=etthuscontrolmatter
+    volumes:
+      - etthus-storage:/opt/etthus-hub/.matter-storage
+    logging:
+      driver: journald
+      options:
+        tag: etthus-hub
+
+volumes:
+  etthus-storage:
+    name: etthus-storage

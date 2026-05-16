@@ -1,0 +1,21 @@
+{
+  "name": "etthus-plejd-bridge",
+  "version": "1.0.0",
+  "description": "Plejd BLE bridge for etthusHUB",
+  "main": "src/bridge.ts",
+  "scripts": {
+    "start": "ts-node src/bridge.ts",
+    "dev": "ts-node src/bridge.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "firebase": "^12.12.1",
+    "dotenv": "^17.4.2",
+    "@abandonware/noble": "^1.9.2-15"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,23 @@
+[Unit]
+Description=EtthusHUB Plejd Bridge
+After=network-online.target bluetooth.target
+Wants=network-online.target bluetooth.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/etthus-hub/plejd-bridge
+ExecStart=/usr/bin/npx ts-node src/bridge.ts
+Restart=on-failure
+RestartSec=15
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=plejd-bridge
+
+Environment=NODE_ENV=production
+
+# Allow BLE access
+AmbientCapabilities=CAP_NET_RAW
+
+[Install]
+WantedBy=multi-user.target

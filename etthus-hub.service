@@ -1,0 +1,30 @@
+[Unit]
+Description=EtthusHUB - Matter Smart Home Controller
+Documentation=https://github.com/etthuscontrol/etthus-hub
+After=network-online.target bluetooth.target avahi-daemon.service
+Wants=network-online.target bluetooth.target avahi-daemon.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/etthus-hub
+ExecStart=/usr/bin/npx ts-node src/server.ts
+ExecStop=/bin/kill -SIGTERM $MAINPID
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=etthus-hub
+
+# Environment
+Environment=NODE_ENV=production
+Environment=PORT=3001
+Environment=SETUP_PORT=3002
+Environment=MATTER_STORAGE_PATH=/opt/etthus-hub/.matter-storage
+
+# Allow Matter to use network features
+AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_NET_RAW CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target
