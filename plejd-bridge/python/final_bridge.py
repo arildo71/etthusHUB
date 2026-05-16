@@ -247,7 +247,7 @@ async def main():
         password = PLEJD_PASSWORD
         site_id = PLEJD_SITE_ID
     
-    if not site_id:
+    if not site_id or site_id == '1':
         # Auto-detect site ID from Plejd cloud
         log.info('No site ID configured, auto-detecting...')
         try:
