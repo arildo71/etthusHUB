@@ -886,6 +886,23 @@ async function bootstrapMain() {
   listenForCommands();
   listenForAutomationRuns();
   listenForHubCommands();
+  
+  // Heartbeat: update hub doc every 30s so admin knows hub is online
+  const hubId = process.env.HUB_ID || hubDocId || HOUSE_ID;
+  if (hubId) {
+    setInterval(async () => {
+      try {
+        await updateDoc(doc(db, 'hubs', hubId), {
+          lastSeen: serverTimestamp(),
+          status: 'paired',
+          houseId: HOUSE_ID,
+          houseName: houseConfig?.houseName || '',
+        });
+      } catch (e) {}
+    }, 30000);
+    console.log(`[Hub] Heartbeat started for hub: ${hubId}`);
+  }
+  
   console.log('[EtthusHUB] Backend fully initialized. Listening for Firebase events.');
 }
 
