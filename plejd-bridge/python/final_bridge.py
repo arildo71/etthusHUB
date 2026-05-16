@@ -248,8 +248,42 @@ async def main():
         site_id = PLEJD_SITE_ID
     
     if not site_id:
-        log.error('Plejd site ID not configured. Set in admin dashboard (Plejd section, field 3).')
-        return
+        # Auto-detect site ID from Plejd cloud
+        log.info('No site ID configured, auto-detecting...')
+        try:
+            login_resp = requests.post(
+                'https://cloud.plejd.com/parse/login',
+                json={'username': email, 'password': password},
+                headers={
+                    'X-Parse-Application-Id': 'zHvvOHTxLkHZZRRVIftxqS0iHEITjPvNnBUlMPUb',
+                    'X-Parse-REST-API-Key': 'HfNuQMXhAPTEKbGBUVmvqkNjMUyASJLPyUqzPaez',
+                    'Content-Type': 'application/json',
+                },
+                timeout=15
+            )
+            login_data = login_resp.json()
+            token = login_data.get('sessionToken')
+            if not token:
+                log.error('Plejd login failed')
+                return
+            
+            sites_resp = requests.get(
+                'https://cloud.plejd.com/parse/classes/Site',
+                headers={'X-Parse-Application-Id': 'zHvvOHTxLkHZZRRVIftxqS0iHEITjPvNnBUlMPUb',
+                         'X-Parse-Session-Token': token},
+                timeout=15
+            )
+            sites = sites_resp.json().get('results', [])
+            if not sites:
+                log.error('No Plejd sites found for this account')
+                return
+            
+            site_id = sites[0]['objectId']
+            name = sites[0].get('siteTitle', 'Unknown')
+            log.info(f'Auto-detected site: {name} ({site_id})')
+        except Exception as e:
+            log.error(f'Site auto-detection failed: {e}')
+            return
     
     creds = {'username': email, 'password': password, 'siteId': site_id}
     
