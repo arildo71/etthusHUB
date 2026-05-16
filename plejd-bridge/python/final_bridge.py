@@ -248,38 +248,46 @@ async def main():
         site_id = PLEJD_SITE_ID
     
     if not site_id or site_id == '1':
-        # Auto-detect site ID from Plejd cloud
+        # Auto-detect site ID using Plejd cloud API
         log.info('No site ID configured, auto-detecting...')
         try:
+            # Login
             login_resp = requests.post(
                 'https://cloud.plejd.com/parse/login',
                 json={'username': email, 'password': password},
                 headers={
                     'X-Parse-Application-Id': 'zHvvOHTxLkHZZRRVIftxqS0iHEITjPvNnBUlMPUb',
-                    'X-Parse-REST-API-Key': 'HfNuQMXhAPTEKbGBUVmvqkNjMUyASJLPyUqzPaez',
+                    'X-Parse-Revocable-Session': '1',
                     'Content-Type': 'application/json',
                 },
                 timeout=15
             )
+            if login_resp.status_code != 200:
+                log.error(f'Plejd login failed ({login_resp.status_code})')
+                return
             login_data = login_resp.json()
             token = login_data.get('sessionToken')
             if not token:
-                log.error('Plejd login failed')
+                log.error(f'Plejd login failed: {login_data.get("error", "unknown")}')
                 return
             
-            sites_resp = requests.get(
-                'https://cloud.plejd.com/parse/classes/Site',
-                headers={'X-Parse-Application-Id': 'zHvvOHTxLkHZZRRVIftxqS0iHEITjPvNnBUlMPUb',
-                         'X-Parse-Session-Token': token},
+            # Get sites
+            sites_resp = requests.post(
+                'https://cloud.plejd.com/parse/functions/getSites',
+                headers={
+                    'X-Parse-Application-Id': 'zHvvOHTxLkHZZRRVIftxqS0iHEITjPvNnBUlMPUb',
+                    'X-Parse-Session-Token': token,
+                },
                 timeout=15
             )
-            sites = sites_resp.json().get('results', [])
+            sites_data = sites_resp.json()
+            sites = sites_data.get('result', [])
             if not sites:
                 log.error('No Plejd sites found for this account')
                 return
             
-            site_id = sites[0]['objectId']
-            name = sites[0].get('siteTitle', 'Unknown')
+            site_id = sites[0]['siteId']
+            name = sites[0].get('title', 'Unknown')
             log.info(f'Auto-detected site: {name} ({site_id})')
         except Exception as e:
             log.error(f'Site auto-detection failed: {e}')
