@@ -10,7 +10,7 @@ from threading import Event
 
 import requests
 from bleak import BleakScanner
-from pyplejd import PlejdManager, get_site_data
+from pyplejd import PlejdManager
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [Plejd] %(message)s')
 log = logging.getLogger()
@@ -178,15 +178,10 @@ async def handle_commands():
                 log.info(f'Cmd: {raw_text} -> device={target_name} addr={target_addr}')
                 
                 if not manager.connected:
-                    log.warning(f'Not connected to mesh, cannot process command')
+                    log.warning('Not connected to mesh')
                     continue
                 
                 try:
-                    dev = manager.devices.get(target_addr)
-                    if not dev:
-                        log.warning(f'Device {target_addr} not found')
-                        continue
-                    
                     cmd_type = fields.get('type')
                     if cmd_type == 'level' and fields.get('level') is not None:
                         lvl_pct = int(fields['level'])
@@ -196,10 +191,10 @@ async def handle_commands():
                         log.info(f'Set {target_addr} state={state} level={lvl}')
                     elif raw_text:
                         if 'on' in raw_text and 'off' not in raw_text:
-                            await dev.turn_on(dim=254)
+                            await manager.mesh.set_state(target_addr, True, 254)
                             log.info(f'Turned ON {target_addr}')
                         elif 'off' in raw_text:
-                            await dev.turn_off()
+                            await manager.mesh.set_state(target_addr, False, 0)
                             log.info(f'Turned OFF {target_addr}')
                     
                     firestore_patch(f'commands/{doc_name}', {'status': 'done'})
@@ -248,65 +243,94 @@ async def main():
         site_id = PLEJD_SITE_ID
     
     if not site_id or site_id == '1':
-        # Auto-detect site ID using Plejd cloud API
+        # Auto-detect site ID using Plejd Parse API (same as pyplejd v0.1)
         log.info('No site ID configured, auto-detecting...')
         try:
+            PARSE_APP_ID = 'zHtVqXt8k4yFyk2QGmgp48D9xZr2G94xWYnF4dak'
+            PARSE_BASE = 'https://cloud.plejd.com'
+            
             # Login
             login_resp = requests.post(
-                'https://cloud.plejd.com/parse/login',
+                f'{PARSE_BASE}/parse/login',
                 json={'username': email, 'password': password},
-                headers={
-                    'X-Parse-Application-Id': 'zHvvOHTxLkHZZRRVIftxqS0iHEITjPvNnBUlMPUb',
-                    'X-Parse-Revocable-Session': '1',
-                    'Content-Type': 'application/json',
-                },
+                headers={'X-Parse-Application-Id': PARSE_APP_ID, 'Content-Type': 'application/json'},
                 timeout=15
             )
             if login_resp.status_code != 200:
                 log.error(f'Plejd login failed ({login_resp.status_code})')
                 return
-            login_data = login_resp.json()
-            token = login_data.get('sessionToken')
+            token = login_resp.json().get('sessionToken')
             if not token:
-                log.error(f'Plejd login failed: {login_data.get("error", "unknown")}')
+                log.error('Plejd login failed: no token')
                 return
             
-            # Get sites
+            # Get sites list
             sites_resp = requests.post(
-                'https://cloud.plejd.com/parse/functions/getSites',
-                headers={
-                    'X-Parse-Application-Id': 'zHvvOHTxLkHZZRRVIftxqS0iHEITjPvNnBUlMPUb',
-                    'X-Parse-Session-Token': token,
-                },
+                f'{PARSE_BASE}/parse/functions/getSiteList',
+                headers={'X-Parse-Application-Id': PARSE_APP_ID, 'X-Parse-Session-Token': token},
                 timeout=15
             )
-            sites_data = sites_resp.json()
-            sites = sites_data.get('result', [])
+            sites = sites_resp.json().get('result', [])
             if not sites:
                 log.error('No Plejd sites found for this account')
                 return
             
-            site_id = sites[0]['siteId']
-            name = sites[0].get('title', 'Unknown')
+            site_id = sites[0].get('siteId', sites[0].get('objectId', ''))
+            name = sites[0].get('title', sites[0].get('siteTitle', 'Unknown'))
             log.info(f'Auto-detected site: {name} ({site_id})')
         except Exception as e:
             log.error(f'Site auto-detection failed: {e}')
             return
     
-    creds = {'username': email, 'password': password, 'siteId': site_id}
-    
+    # Get site data (crypto key) using same API
+    log.info('Fetching site data from Plejd cloud...')
     try:
-        # Get site data (includes crypto key)
-        sd = await get_site_data(**creds)
+        PARSE_APP_ID = 'zHtVqXt8k4yFyk2QGmgp48D9xZr2G94xWYnF4dak'
+        PARSE_BASE = 'https://cloud.plejd.com'
+        
+        # Login
+        login_resp = requests.post(
+            f'{PARSE_BASE}/parse/login',
+            json={'username': email, 'password': password},
+            headers={'X-Parse-Application-Id': PARSE_APP_ID, 'Content-Type': 'application/json'},
+            timeout=15
+        )
+        login_resp.raise_for_status()
+        token = login_resp.json().get('sessionToken')
+        
+        # Get site details
+        details_resp = requests.post(
+            f'{PARSE_BASE}/parse/functions/getSiteById',
+            params={'siteId': site_id},
+            headers={'X-Parse-Application-Id': PARSE_APP_ID, 'X-Parse-Session-Token': token},
+            timeout=15
+        )
+        details_resp.raise_for_status()
+        site_data = details_resp.json().get('result', [])
+        if not site_data:
+            log.error(f'No site data for id: {site_id}')
+            return
+        sd = site_data[0]
         pm = sd.get('plejdMesh', {})
         ck = pm.get('cryptoKey', '').replace('-', '').replace(' ', '').upper()
         log.info(f'Crypto key: {ck[:8]}...')
         
-        # Create manager and get devices
-        m = PlejdManager(creds)
-        await m.get_devices()
+        # Create manager
+        m = PlejdManager({'username': email, 'password': password, 'siteId': site_id})
         m.mesh.set_crypto_key(ck)
         m.mesh.statecallback = on_state_changed
+        
+        # Build device map from site data (skip broken pyplejd cloud calls)
+        device_map = {}
+        for device in sd.get('devices', []):
+            ble_addr = device.get('deviceId', '')
+            addr = sd.get('deviceAddress', {}).get(ble_addr, None)
+            if addr is not None:
+                dtype = str(device.get('type', 'unknown') or 'unknown')
+                name = device.get('title', f'Plejd {addr}') or f'Plejd {addr}'
+                dimmable = any(x in dtype.lower() for x in ('dim', 'led', 'light'))
+                device_map[addr] = {'name': name, 'type': dtype, 'dimmable': dimmable}
+                log.info(f'Device {addr}: {name} ({dtype})' + (' dimmable' if dimmable else ''))
         
         # Clean up any stale BLE connections
         try:
