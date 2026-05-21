@@ -4,7 +4,7 @@ Plejd Bridge for etthusHUB v3.0
 Uses pyplejd v0.1 (BLE direct with crypto key) + Firebase REST API.
 Stays connected to Plejd mesh, syncs devices to Firestore, handles commands.
 """
-import os, sys, json, time, logging, asyncio
+import os, sys, json, time, logging, asyncio, signal
 from pathlib import Path
 from threading import Event
 
@@ -383,6 +383,19 @@ async def main():
         
         manager = m
 
+        # Register signal handlers for clean exit
+        loop = asyncio.get_running_loop()
+        def handle_signal(sig):
+            global shutdown_flag
+            log.info(f'Received exit signal {sig.name}. Shutting down...')
+            shutdown_flag = True
+        
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(sig, handle_signal, sig)
+            except NotImplementedError:
+                pass
+
         # Initial sync via poll triggers state callbacks
         await m.mesh.poll()
         
@@ -399,6 +412,15 @@ async def main():
         log.error(f'Fatal: {e}')
         import traceback
         traceback.print_exc()
+    finally:
+        # Graceful BLE disconnect on exit
+        log.info('Cleaning up BLE connection...')
+        try:
+            import subprocess
+            subprocess.run(['bluetoothctl', 'disconnect', 'CD:DE:EB:A6:C0:A6'], capture_output=True, timeout=5)
+            log.info('Cleaned up BLE connection.')
+        except Exception as e:
+            log.debug(f'Cleanup failed: {e}')
 
 if __name__ == '__main__':
     try:

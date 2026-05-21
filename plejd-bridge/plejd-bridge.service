@@ -8,6 +8,7 @@ Type=simple
 User=root
 WorkingDirectory=/opt/etthus-hub/plejd-bridge
 ExecStart=/usr/bin/python3 /opt/etthus-hub/plejd-bridge/python/final_bridge.py
+ExecStopPost=-/usr/bin/bluetoothctl disconnect CD:DE:EB:A6:C0:A6
 Restart=on-failure
 RestartSec=15
 StandardOutput=journal
@@ -21,3 +22,4 @@ AmbientCapabilities=CAP_NET_RAW
 
 [Install]
 WantedBy=multi-user.target
+
