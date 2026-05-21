@@ -341,15 +341,6 @@ async def main():
         except Exception:
             pass
         
-        # Build device map
-        device_map = {}
-        for addr, dev in m.devices.items():
-            dtype = getattr(dev, 'type', 'Plejd') or 'Plejd'
-            dname = getattr(dev, 'name', f'Plejd {addr}') or f'Plejd {addr}'
-            dimmable = any(x in dtype.lower() for x in ('dim', 'led', 'light'))
-            device_map[addr] = {'name': dname, 'type': dtype, 'dimmable': dimmable}
-            log.info(f'Device {addr}: {dname} ({dtype}){" dimmable" if dimmable else ""}')
-        
         # Add mesh gateway directly by known BLE address
         log.info('Connecting to Plejd mesh gateway CD:DE:EB:A6:C0:A6...')
         try:

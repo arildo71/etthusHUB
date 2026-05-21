@@ -820,7 +820,15 @@ function listenForHubCommands() {
         console.log(`[HubCMD] Executing: ${command}`);
         await updateDoc(docRef, { status: 'running', output: 'Running...', startedAt: serverTimestamp() });
 
-        exec(command, { timeout: 30000, maxBuffer: 1024 * 1024 }, async (error, stdout, stderr) => {
+        let finalCommand = command;
+        if (process.getuid && process.getuid() === 0) {
+          if (finalCommand.startsWith('sudo ')) {
+            console.log('[HubCMD] Running as root, stripping "sudo " prefix');
+            finalCommand = finalCommand.substring(5);
+          }
+        }
+
+        exec(finalCommand, { timeout: 30000, maxBuffer: 1024 * 1024 }, async (error, stdout, stderr) => {
           const output = (stdout || '') + (stderr ? '\n' + stderr : '') + (error ? '\nError: ' + error.message : '');
           console.log(`[HubCMD] Done (exit: ${error?.code || 0}): ${output.slice(0, 100)}`);
 
