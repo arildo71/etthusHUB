@@ -289,13 +289,14 @@ async def main():
         PARSE_BASE = 'https://cloud.plejd.com'
         
         # Login
+        log.info(f'Login to Plejd with email={email[:10]}...')
         login_resp = requests.post(
             f'{PARSE_BASE}/parse/login',
             json={'username': email, 'password': password},
             headers={'X-Parse-Application-Id': PARSE_APP_ID, 'Content-Type': 'application/json'},
             timeout=15
         )
-        login_resp.raise_for_status()
+        log.info(f'Login response: {login_resp.status_code}')
         token = login_resp.json().get('sessionToken')
         
         # Get site details
